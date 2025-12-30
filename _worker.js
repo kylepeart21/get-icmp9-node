@@ -3,7 +3,7 @@ export default {
     const url = new URL(request.url);
     const params = url.searchParams;
 
-    // 如果没有 uuid，当作前端页面请求
+    // 没有 uuid，返回前端页面
     if (!params.has("uuid")) {
       return new Response(getHTML(url.origin), {
         headers: {
@@ -12,13 +12,14 @@ export default {
       });
     }
 
-    /* ================= 原有功能开始（保持不变） ================= */
-
     const server = params.get("server") || "tunnel.icmp9.com";
     const port = parseInt(params.get("port") || "443", 10);
-    const uuid = params.get("uuid") || "";
+    const uuid = params.get("uuid");
     const servername = params.get("servername") || server;
     const tls = (params.get("tls") || "true") === "true";
+
+    // 默认格式：v2ray
+    const format = (params.get("format") || "v2ray").toLowerCase();
 
     // 获取 API 数据
     let apiData = null;
@@ -31,72 +32,112 @@ export default {
       apiData = null;
     }
 
-    const proxies = [];
-    const proxyNames = ["DIRECT"];
+    /* ===================== Clash YAML（需要 format=clash） ===================== */
+    if (format === "clash") {
+      const proxies = [];
+      const proxyNames = ["DIRECT"];
+
+      if (apiData && apiData.success && Array.isArray(apiData.countries)) {
+        for (const country of apiData.countries) {
+          const code = (country.code || "").toUpperCase();
+          const name = `${country.emoji} ${code} | ${country.name}`;
+          const path = `/${country.code}`;
+
+          proxies.push({
+            name,
+            type: "vmess",
+            server,
+            port,
+            uuid,
+            alterId: 0,
+            cipher: "auto",
+            tls,
+            servername,
+            network: "ws",
+            path,
+          });
+
+          proxyNames.push(name);
+        }
+      }
+
+      let yaml = "";
+      yaml += "mixed-port: 7890\n";
+      yaml += "allow-lan: true\n";
+      yaml += "mode: rule\n";
+      yaml += "log-level: info\n\n";
+
+      yaml += "proxies:\n";
+      for (const p of proxies) {
+        yaml += `  - name: '${p.name}'\n`;
+        yaml += `    type: ${p.type}\n`;
+        yaml += `    server: '${p.server}'\n`;
+        yaml += `    port: ${p.port}\n`;
+        yaml += `    uuid: ${p.uuid}\n`;
+        yaml += `    alterId: 0\n`;
+        yaml += `    cipher: auto\n`;
+        yaml += `    tls: ${p.tls ? "true" : "false"}\n`;
+        yaml += `    servername: '${p.servername}'\n`;
+        yaml += `    network: ws\n`;
+        yaml += `    ws-opts:\n`;
+        yaml += `      path: '${p.path}'\n`;
+        yaml += `      headers:\n`;
+        yaml += `        Host: '${p.servername}'\n`;
+      }
+
+      yaml += "\nproxy-groups:\n";
+      yaml += "  - name: '🚀 节点选择'\n";
+      yaml += "    type: select\n";
+      yaml += "    proxies:\n";
+      for (const name of proxyNames) {
+        yaml += `      - '${name}'\n`;
+      }
+
+      yaml += "\nrules:\n";
+      yaml += "  - MATCH, 🚀 节点选择\n";
+
+      return new Response(yaml, {
+        headers: {
+          "Content-Type": "text/yaml; charset=utf-8",
+        },
+      });
+    }
+
+    /* ===================== 默认：V2Ray vmess 订阅 ===================== */
+
+    const vmessLinks = [];
 
     if (apiData && apiData.success && Array.isArray(apiData.countries)) {
       for (const country of apiData.countries) {
-        const code = (country.code || "").toUpperCase();
-        const name = `${country.emoji} ${code} | ${country.name}`;
+        const name = `${country.emoji} ${country.code.toUpperCase()} | ${country.name}`;
         const path = `/${country.code}`;
 
-        proxies.push({
-          name,
-          type: "vmess",
-          server,
-          port,
-          uuid,
-          alterId: 0,
-          cipher: "auto",
-          tls,
-          servername,
-          network: "ws",
+        const vmessObj = {
+          v: "2",
+          ps: name,
+          add: server,
+          port: String(port),
+          id: uuid,
+          aid: "0",
+          net: "ws",
+          type: "none",
+          host: servername,
           path,
-        });
+          tls: tls ? "tls" : ""
+        };
 
-        proxyNames.push(name);
+        vmessLinks.push(
+          "vmess://" + btoa(JSON.stringify(vmessObj))
+        );
       }
     }
 
-    // 生成 YAML
-    let yaml = "";
-    yaml += "mixed-port: 7890\n";
-    yaml += "allow-lan: true\n";
-    yaml += "mode: rule\n";
-    yaml += "log-level: info\n\n";
+    // v2ray 订阅需要整体 Base64
+    const body = btoa(vmessLinks.join("\n"));
 
-    yaml += "proxies:\n";
-    for (const p of proxies) {
-      yaml += `  - name: '${p.name}'\n`;
-      yaml += `    type: ${p.type}\n`;
-      yaml += `    server: '${p.server}'\n`;
-      yaml += `    port: ${p.port}\n`;
-      yaml += `    uuid: ${p.uuid}\n`;
-      yaml += `    alterId: 0\n`;
-      yaml += `    cipher: auto\n`;
-      yaml += `    tls: ${p.tls ? "true" : "false"}\n`;
-      yaml += `    servername: '${p.servername}'\n`;
-      yaml += `    network: ws\n`;
-      yaml += `    ws-opts:\n`;
-      yaml += `      path: '${p.path}'\n`;
-      yaml += `      headers:\n`;
-      yaml += `        Host: '${p.servername}'\n`;
-    }
-
-    yaml += "\nproxy-groups:\n";
-    yaml += "  - name: '🚀 节点选择'\n";
-    yaml += "    type: select\n";
-    yaml += "    proxies:\n";
-    for (const name of proxyNames) {
-      yaml += `      - '${name}'\n`;
-    }
-
-    yaml += "\nrules:\n";
-    yaml += "  - MATCH, 🚀 节点选择\n";
-
-    return new Response(yaml, {
+    return new Response(body, {
       headers: {
-        "Content-Type": "text/yaml; charset=utf-8",
+        "Content-Type": "text/plain; charset=utf-8",
       },
     });
   },
