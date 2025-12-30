@@ -198,9 +198,6 @@ function getHTML(origin) {
 <title>ICMP9 订阅生成器</title>
 
 <style>
-/* =====================
-   主题变量
-===================== */
 :root {
   --bg: radial-gradient(1200px 600px at 10% -10%, #0f172a 0%, #020617 70%);
   --card: rgba(10, 15, 35, 0.88);
@@ -225,12 +222,9 @@ function getHTML(origin) {
   --shadow-btn: 0 14px 40px rgba(79,70,229,.4);
 }
 
-/* =====================
-   基础
-===================== */
 * {
   box-sizing: border-box;
-  transition: background .25s, color .25s, border .25s, box-shadow .25s, transform .2s;
+  transition: background .25s, color .25s, border .25s, box-shadow .25s;
 }
 
 body {
@@ -242,9 +236,6 @@ body {
   color: var(--text);
 }
 
-/* =====================
-   卡片
-===================== */
 .card {
   max-width: 520px;
   margin: auto;
@@ -270,12 +261,9 @@ h1 {
 .toggle {
   font-size: 22px;
   cursor: pointer;
-  user-select: none;
 }
 
-/* =====================
-   表单
-===================== */
+/* 表单 */
 label {
   display: block;
   margin-top: 16px;
@@ -293,6 +281,19 @@ input, select {
   border-radius: 14px;
   border: 1px solid var(--border);
   outline: none;
+  appearance: none;
+}
+
+select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, #94a3b8 50%),
+    linear-gradient(135deg, #94a3b8 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  cursor: pointer;
 }
 
 input:focus, select:focus {
@@ -300,33 +301,7 @@ input:focus, select:focus {
   box-shadow: 0 0 0 3px rgba(99,102,241,.2);
 }
 
-/* =====================
-   下拉框增强
-===================== */
-.select-wrap {
-  position: relative;
-}
-
-.select-wrap::after {
-  content: "▾";
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 14px;
-  color: var(--sub);
-  pointer-events: none;
-}
-
-select {
-  appearance: none;
-  padding-right: 36px;
-  cursor: pointer;
-}
-
-/* =====================
-   按钮
-===================== */
+/* 按钮 */
 button {
   width: 100%;
   margin-top: 20px;
@@ -357,9 +332,7 @@ button:hover {
   background: rgba(99,102,241,.08);
 }
 
-/* =====================
-   结果
-===================== */
+/* 结果 */
 .result {
   margin-top: 16px;
   padding: 14px;
@@ -370,33 +343,21 @@ button:hover {
   word-break: break-all;
 }
 
-.result a {
-  color: #60a5fa;
-  text-decoration: none;
-}
-
-/* =====================
-   Toast
-===================== */
+/* Toast */
 .toast {
   position: fixed;
+  bottom: 24px;
   left: 50%;
-  bottom: 28px;
   transform: translateX(-50%) translateY(20px);
-  background: rgba(15, 23, 42, .95);
-  color: #fff;
   padding: 12px 18px;
-  border-radius: 999px;
-  font-size: 13px;
+  background: rgba(15,23,42,.9);
+  color: #e5e7eb;
+  border-radius: 14px;
+  font-size: 14px;
   opacity: 0;
   pointer-events: none;
-  transition: all .35s ease;
+  transition: all .3s ease;
   box-shadow: 0 10px 30px rgba(0,0,0,.4);
-}
-
-[data-theme="light"] .toast {
-  background: rgba(255,255,255,.95);
-  color: #0f172a;
 }
 
 .toast.show {
@@ -430,15 +391,16 @@ button:hover {
   <input id="servername" value="tunnel.icmp9.com" />
 
   <label>订阅格式</label>
-  <div class="select-wrap">
-    <select id="format">
-      <option value="auto">自动识别（推荐）</option>
-      <option value="v2ray">V2Ray / vmess</option>
-      <option value="clash">Clash</option>
-      <option value="singbox">sing-box</option>
-      <option value="nekobox">Nekobox</option>
-    </select>
-  </div>
+  <select id="format">
+    <option value="auto">自动识别（推荐）</option>
+    <option value="v2ray">V2Ray / vmess</option>
+    <option value="clash">Clash</option>
+    <option value="singbox">sing-box</option>
+    <option value="nekobox">Nekobox</option>
+  </select>
+
+  <label>TLS（已锁定）</label>
+  <select disabled><option>true</option></select>
 
   <button id="genBtn">生成订阅链接</button>
   <button class="copy" id="copyBtn">📋 复制订阅链接</button>
@@ -452,14 +414,12 @@ button:hover {
 const $ = id => document.getElementById(id);
 const STORAGE = { UUID: "uuid", THEME: "theme", FORMAT: "format" };
 let currentUrl = "";
-let toastTimer = null;
 
-function showToast(msg) {
-  const t = $('toast');
-  t.textContent = msg;
-  t.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
+function showToast(text) {
+  const toast = $('toast');
+  toast.textContent = text;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
 }
 
 function gen() {
@@ -473,11 +433,8 @@ function gen() {
   const servername = $('servername').value;
   const format = $('format').value;
 
-  if (format !== "auto") {
-    localStorage.setItem(STORAGE.FORMAT, format);
-  } else {
-    localStorage.removeItem(STORAGE.FORMAT);
-  }
+  if (format !== "auto") localStorage.setItem(STORAGE.FORMAT, format);
+  else localStorage.removeItem(STORAGE.FORMAT);
 
   currentUrl =
     location.origin +
@@ -487,9 +444,7 @@ function gen() {
     "&servername=" + encodeURIComponent(servername) +
     "&tls=true";
 
-  if (format !== "auto") {
-    currentUrl += "&format=" + format;
-  }
+  if (format !== "auto") currentUrl += "&format=" + format;
 
   $('result').innerHTML =
     '<a href="' + currentUrl + '" target="_blank">' + currentUrl + '</a>';
@@ -498,7 +453,7 @@ function gen() {
 function copy() {
   if (!currentUrl) return showToast("请先生成订阅链接");
   navigator.clipboard.writeText(currentUrl)
-    .then(() => showToast("已复制到剪贴板"));
+    .then(() => showToast("订阅链接已复制"));
 }
 
 function toggleTheme() {
