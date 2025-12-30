@@ -1,38 +1,48 @@
 /**
- * Unicode-safe Base64（修复 1101 核心）
+ * Unicode-safe Base64（修复 1101）
  */
 function base64Encode(str) {
   return btoa(
-    String.fromCharCode(
-      ...new TextEncoder().encode(str)
-    )
+    String.fromCharCode(...new TextEncoder().encode(str))
   );
 }
 
 /**
- * UA 伪装（避免 CF 风控 / 客户端订阅被拦）
+ * 判断订阅格式（UA 自动识别）
+ */
+function detectFormat(request) {
+  const ua = (request.headers.get("User-Agent") || "").toLowerCase();
+
+  if (ua.includes("nekobox") || ua.includes("sing-box")) return "singbox";
+  if (ua.includes("clash")) return "clash";
+  if (
+    ua.includes("v2ray") ||
+    ua.includes("shadowrocket") ||
+    ua.includes("quantumult") ||
+    ua.includes("kitsunebi")
+  ) return "v2ray";
+
+  return "v2ray"; // 兜底
+}
+
+/**
+ * UA 伪装（给 API 用）
  */
 function getFakeUA(request) {
   const ua = request.headers.get("User-Agent") || "";
-  if (ua.includes("clash") || ua.includes("Clash")) return ua;
-  if (ua.includes("v2ray") || ua.includes("V2Ray")) return ua;
-  if (ua.includes("nekobox") || ua.includes("Neko")) return ua;
-
-  // 默认伪装成 Chrome
+  if (/clash|v2ray|nekobox|sing-box/i.test(ua)) return ua;
   return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 }
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request) {
     const url = new URL(request.url);
     const params = url.searchParams;
 
-    /* ================= 无 UUID：前端页面 ================= */
+    /* ================= 无 UUID：前端 ================= */
     if (!params.has("uuid")) {
       return new Response(getHTML(url.origin), {
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-        },
+        headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
 
@@ -42,126 +52,137 @@ export default {
     const servername = params.get("servername") || server;
     const tls = (params.get("tls") || "true") === "true";
 
-    // 默认 v2ray
-    const format = (params.get("format") || "v2ray").toLowerCase();
+    // 👇 UA 自动判断格式（format 参数仍可手动覆盖）
+    const format =
+      (params.get("format") || detectFormat(request)).toLowerCase();
 
-    /* ================= 获取 API 数据（带 UA 伪装） ================= */
+    /* ================= 获取 API ================= */
     let apiData = null;
     try {
-      const apiResp = await fetch("https://api.icmp9.com/online.php", {
-        headers: {
-          "User-Agent": getFakeUA(request),
-          "Accept": "application/json",
-        },
-        cf: {
-          cacheTtl: 60,
-          cacheEverything: true,
-        },
+      const resp = await fetch("https://api.icmp9.com/online.php", {
+        headers: { "User-Agent": getFakeUA(request) },
+        cf: { cacheTtl: 60, cacheEverything: true },
       });
-      apiData = await apiResp.json();
-    } catch (e) {
+      apiData = await resp.json();
+    } catch {
       apiData = null;
     }
 
-    /* ===================== Clash YAML（显式指定） ===================== */
+    /* ================= sing-box / nekobox ================= */
+    if (format === "singbox" || format === "nekobox") {
+      const outbounds = [];
+      const tags = [];
+
+      if (apiData?.success && Array.isArray(apiData.countries)) {
+        for (const c of apiData.countries) {
+          const tag = `${c.emoji} ${c.code.toUpperCase()} | ${c.name}`;
+          tags.push(tag);
+
+          outbounds.push({
+            type: "vmess",
+            tag,
+            server,
+            server_port: port,
+            uuid,
+            security: "auto",
+            alter_id: 0,
+            tls: {
+              enabled: tls,
+              server_name: servername,
+            },
+            transport: {
+              type: "ws",
+              path: `/${c.code}`,
+              headers: { Host: servername },
+            },
+          });
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          log: { level: "info" },
+          inbounds: [],
+          outbounds: [
+            { type: "selector", tag: "🚀 节点选择", outbounds: tags },
+            ...outbounds,
+            { type: "direct", tag: "direct" },
+            { type: "block", tag: "block" },
+          ],
+          route: { final: "🚀 节点选择" },
+        }, null, 2),
+        { headers: { "Content-Type": "application/json; charset=utf-8" } }
+      );
+    }
+
+    /* ================= Clash ================= */
     if (format === "clash") {
-      const proxies = [];
-      const proxyNames = ["DIRECT"];
+      let yaml = "";
+      const names = ["DIRECT"];
+
+      yaml += "mixed-port: 7890\nallow-lan: true\nmode: rule\nlog-level: info\n\nproxies:\n";
 
       if (apiData?.success && Array.isArray(apiData.countries)) {
         for (const c of apiData.countries) {
           const name = `${c.emoji} ${c.code.toUpperCase()} | ${c.name}`;
-          const path = `/${c.code}`;
+          names.push(name);
 
-          proxies.push({
-            name,
-            server,
-            port,
-            uuid,
-            tls,
-            servername,
-            path,
-          });
-
-          proxyNames.push(name);
+          yaml +=
+`  - name: '${name}'
+    type: vmess
+    server: '${server}'
+    port: ${port}
+    uuid: ${uuid}
+    alterId: 0
+    cipher: auto
+    tls: ${tls}
+    servername: '${servername}'
+    network: ws
+    ws-opts:
+      path: '/${c.code}'
+      headers:
+        Host: '${servername}'
+`;
         }
       }
 
-      let yaml = "";
-      yaml += "mixed-port: 7890\n";
-      yaml += "allow-lan: true\n";
-      yaml += "mode: rule\n";
-      yaml += "log-level: info\n\n";
-
-      yaml += "proxies:\n";
-      for (const p of proxies) {
-        yaml += `  - name: '${p.name}'\n`;
-        yaml += `    type: vmess\n`;
-        yaml += `    server: '${p.server}'\n`;
-        yaml += `    port: ${p.port}\n`;
-        yaml += `    uuid: ${p.uuid}\n`;
-        yaml += `    alterId: 0\n`;
-        yaml += `    cipher: auto\n`;
-        yaml += `    tls: ${p.tls}\n`;
-        yaml += `    servername: '${p.servername}'\n`;
-        yaml += `    network: ws\n`;
-        yaml += `    ws-opts:\n`;
-        yaml += `      path: '${p.path}'\n`;
-        yaml += `      headers:\n`;
-        yaml += `        Host: '${p.servername}'\n`;
-      }
-
-      yaml += "\nproxy-groups:\n";
-      yaml += "  - name: '🚀 节点选择'\n";
-      yaml += "    type: select\n";
-      yaml += "    proxies:\n";
-      for (const n of proxyNames) {
-        yaml += `      - '${n}'\n`;
-      }
-
-      yaml += "\nrules:\n";
-      yaml += "  - MATCH, 🚀 节点选择\n";
+      yaml += "\nproxy-groups:\n  - name: '🚀 节点选择'\n    type: select\n    proxies:\n";
+      for (const n of names) yaml += `      - '${n}'\n`;
+      yaml += "\nrules:\n  - MATCH, 🚀 节点选择\n";
 
       return new Response(yaml, {
-        headers: {
-          "Content-Type": "text/yaml; charset=utf-8",
-        },
+        headers: { "Content-Type": "text/yaml; charset=utf-8" },
       });
     }
 
-    /* ===================== 默认：V2Ray vmess 订阅 ===================== */
-    const vmessList = [];
+    /* ================= 默认 v2ray ================= */
+    const list = [];
 
     if (apiData?.success && Array.isArray(apiData.countries)) {
       for (const c of apiData.countries) {
-        const vmess = {
-          v: "2",
-          ps: `${c.emoji} ${c.code.toUpperCase()} | ${c.name}`,
-          add: server,
-          port: String(port),
-          id: uuid,
-          aid: "0",
-          net: "ws",
-          type: "none",
-          host: servername,
-          path: `/${c.code}`,
-          tls: tls ? "tls" : ""
-        };
-
-        vmessList.push(
-          "vmess://" + base64Encode(JSON.stringify(vmess))
+        list.push(
+          "vmess://" +
+            base64Encode(
+              JSON.stringify({
+                v: "2",
+                ps: `${c.emoji} ${c.code.toUpperCase()} | ${c.name}`,
+                add: server,
+                port: String(port),
+                id: uuid,
+                aid: "0",
+                net: "ws",
+                type: "none",
+                host: servername,
+                path: `/${c.code}`,
+                tls: tls ? "tls" : "",
+              })
+            )
         );
       }
     }
 
-    // 整体 Base64（v2ray 标准）
-    const body = base64Encode(vmessList.join("\n"));
-
-    return new Response(body, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-store",
-      },
+    return new Response(base64Encode(list.join("\n")), {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   },
 };
