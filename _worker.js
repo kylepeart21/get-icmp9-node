@@ -408,7 +408,7 @@ button:hover {
   <div class="result" id="result"></div>
 </div>
 
-<div class="toast" id="toast">已复制到剪贴板</div>
+<div class="toast" id="toast">提示</div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -448,6 +448,9 @@ function gen() {
 
   $('result').innerHTML =
     '<a href="' + currentUrl + '" target="_blank">' + currentUrl + '</a>';
+
+  // ✅ 新增：生成成功提示
+  showToast("订阅链接已生成");
 }
 
 function copy() {
