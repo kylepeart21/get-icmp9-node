@@ -131,9 +131,7 @@ function getHTML(origin) {
   --primary: #0284c7;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -175,7 +173,7 @@ label {
   color: var(--sub);
 }
 
-input {
+input, select {
   width: 100%;
   margin-top: 6px;
   padding: 12px;
@@ -184,6 +182,11 @@ input {
   background: transparent;
   color: var(--text);
   font-size: 15px;
+}
+
+select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 button {
@@ -228,16 +231,21 @@ button {
   </div>
 
   <label>UUID（自动保存）</label>
-  <input id="uuid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"/>
+  <input id="uuid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
 
   <label>Server</label>
-  <input id="server" value="tunnel.icmp9.com"/>
+  <input id="server" value="tunnel.icmp9.com" />
 
   <label>Port</label>
-  <input id="port" value="443"/>
+  <input id="port" value="443" />
 
   <label>Server Name (SNI)</label>
-  <input id="servername" value="tunnel.icmp9.com"/>
+  <input id="servername" value="tunnel.icmp9.com" />
+
+  <label>TLS（已锁定）</label>
+  <select id="tls" disabled>
+    <option value="true" selected>true</option>
+  </select>
 
   <button onclick="gen()">生成订阅链接</button>
   <button class="copy" onclick="copy()">📋 复制订阅链接</button>
@@ -264,7 +272,7 @@ function gen() {
   const port = $('port').value;
   const servername = $('servername').value || "tunnel.icmp9.com";
 
-  // TLS 始终为 true
+  // TLS 强制 true（无视前端）
   currentUrl =
     location.origin +
     "/?uuid=" + encodeURIComponent(uuid) +
