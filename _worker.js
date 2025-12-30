@@ -234,11 +234,22 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont;
   background: var(--bg);
   color: var(--text);
+
+  display: flex;
+  flex-direction: column;
+}
+
+.page {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .card {
-  max-width: 520px;
-  margin: auto;
+  width: 100%;
   padding: 22px;
   border-radius: 22px;
   background: var(--card);
@@ -343,6 +354,26 @@ button:hover {
   word-break: break-all;
 }
 
+/* Footer */
+footer {
+  margin-top: auto;
+  padding: 16px 0 4px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+footer a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dashed var(--border);
+}
+
+footer a:hover {
+  color: var(--text);
+  border-bottom-color: var(--focus);
+}
+
 /* Toast */
 .toast {
   position: fixed;
@@ -372,43 +403,49 @@ button:hover {
 </head>
 
 <body>
-<div class="card">
-  <div class="header">
-    <h1>🚀 ICMP9 订阅生成器</h1>
-    <div class="toggle" id="themeToggle">🌙</div>
+  <div class="page">
+    <div class="card">
+      <div class="header">
+        <h1>🚀 ICMP9 订阅生成器</h1>
+        <div class="toggle" id="themeToggle">🌙</div>
+      </div>
+
+      <label>UUID（ICMP9 API Key）</label>
+      <input id="uuid" placeholder="必需" />
+
+      <label>Server</label>
+      <input id="server" value="tunnel.icmp9.com" />
+
+      <label>Port</label>
+      <input id="port" value="443" />
+
+      <label>Server Name (SNI)</label>
+      <input id="servername" value="tunnel.icmp9.com" />
+
+      <label>订阅格式</label>
+      <select id="format">
+        <option value="auto">自适应订阅（推荐）</option>
+        <option value="v2ray">V2Ray</option>
+        <option value="clash">Clash</option>
+        <option value="singbox">sing-box</option>
+        <option value="nekobox">Nekobox</option>
+      </select>
+
+      <label>TLS（已锁定）</label>
+      <select disabled><option>true</option></select>
+
+      <button id="genBtn">生成订阅链接</button>
+      <button class="copy" id="copyBtn">📋 复制订阅链接</button>
+
+      <div class="result" id="result"></div>
+    </div>
+
+    <footer>©<span id="year"></span> • Designed with 💜 by
+      <a href="https://github.com/arlettebrook/get-icmp9-node" target="_blank" rel="noopener noreferrer">Arlettebrook</a>
+    </footer>
   </div>
 
-  <label>UUID（ICMP9 API Key）</label>
-  <input id="uuid" placeholder="必需" />
-
-  <label>Server</label>
-  <input id="server" value="tunnel.icmp9.com" />
-
-  <label>Port</label>
-  <input id="port" value="443" />
-
-  <label>Server Name (SNI)</label>
-  <input id="servername" value="tunnel.icmp9.com" />
-
-  <label>订阅格式</label>
-  <select id="format">
-    <option value="auto">自适应订阅（推荐）</option>
-    <option value="v2ray">V2Ray</option>
-    <option value="clash">Clash</option>
-    <option value="singbox">sing-box</option>
-    <option value="nekobox">Nekobox</option>
-  </select>
-
-  <label>TLS（已锁定）</label>
-  <select disabled><option>true</option></select>
-
-  <button id="genBtn">生成订阅链接</button>
-  <button class="copy" id="copyBtn">📋 复制订阅链接</button>
-
-  <div class="result" id="result"></div>
-</div>
-
-<div class="toast" id="toast">提示</div>
+  <div class="toast" id="toast">提示</div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -449,14 +486,52 @@ function gen() {
   $('result').innerHTML =
     '<a href="' + currentUrl + '" target="_blank">' + currentUrl + '</a>';
 
-  // ✅ 新增：生成成功提示
   showToast("订阅链接已生成");
 }
 
-function copy() {
+/**
+ * ✅ 修复点：
+ * 1) 某些环境/协议下 navigator.clipboard.writeText 会被拒绝或无回调
+ * 2) 失败时需要也给出 toast 提示
+ * 3) 提供一个兼容性更好的回退方案（execCommand copy）
+ */
+function fallbackCopyText(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '-9999px';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch (e) {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+async function copy() {
   if (!currentUrl) return showToast("请先生成订阅链接");
-  navigator.clipboard.writeText(currentUrl)
-    .then(() => showToast("订阅链接已复制"));
+
+  // 现代剪贴板 API（需要安全上下文 https/localhost 且有权限）
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(currentUrl);
+      return showToast("订阅链接已复制");
+    }
+  } catch (e) {
+    // 继续走回退方案
+  }
+
+  // 回退：execCommand（兼容性更好）
+  const ok = fallbackCopyText(currentUrl);
+  if (ok) showToast("订阅链接已复制");
+  else showToast("复制失败：请手动选择链接复制");
 }
 
 function toggleTheme() {
@@ -480,6 +555,9 @@ if (savedFormat) $('format').value = savedFormat;
 const theme = localStorage.getItem(STORAGE.THEME) || "dark";
 document.documentElement.dataset.theme = theme;
 $('themeToggle').textContent = theme === "dark" ? "🌙" : "☀️";
+
+// Footer 自动年份
+$('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>`;
