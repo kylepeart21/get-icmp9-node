@@ -225,9 +225,12 @@ function getHTML(origin) {
   --shadow-btn: 0 14px 40px rgba(79,70,229,.4);
 }
 
+/* =====================
+   基础
+===================== */
 * {
   box-sizing: border-box;
-  transition: background .25s, color .25s, border .25s, box-shadow .25s;
+  transition: background .25s, color .25s, border .25s, box-shadow .25s, transform .2s;
 }
 
 body {
@@ -239,6 +242,9 @@ body {
   color: var(--text);
 }
 
+/* =====================
+   卡片
+===================== */
 .card {
   max-width: 520px;
   margin: auto;
@@ -259,7 +265,6 @@ body {
 h1 {
   font-size: 18px;
   margin: 0;
-  letter-spacing: .4px;
 }
 
 .toggle {
@@ -268,6 +273,9 @@ h1 {
   user-select: none;
 }
 
+/* =====================
+   表单
+===================== */
 label {
   display: block;
   margin-top: 16px;
@@ -287,20 +295,38 @@ input, select {
   outline: none;
 }
 
-input::placeholder {
-  color: #64748b;
-}
-
 input:focus, select:focus {
   border-color: var(--focus);
   box-shadow: 0 0 0 3px rgba(99,102,241,.2);
 }
 
-select:disabled {
-  opacity: .75;
-  cursor: not-allowed;
+/* =====================
+   下拉框增强
+===================== */
+.select-wrap {
+  position: relative;
 }
 
+.select-wrap::after {
+  content: "▾";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--sub);
+  pointer-events: none;
+}
+
+select {
+  appearance: none;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+/* =====================
+   按钮
+===================== */
 button {
   width: 100%;
   margin-top: 20px;
@@ -331,6 +357,9 @@ button:hover {
   background: rgba(99,102,241,.08);
 }
 
+/* =====================
+   结果
+===================== */
 .result {
   margin-top: 16px;
   padding: 14px;
@@ -346,8 +375,33 @@ button:hover {
   text-decoration: none;
 }
 
-.result a:hover {
-  text-decoration: underline;
+/* =====================
+   Toast
+===================== */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(15, 23, 42, .95);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all .35s ease;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+}
+
+[data-theme="light"] .toast {
+  background: rgba(255,255,255,.95);
+  color: #0f172a;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 @media (max-width: 480px) {
@@ -376,18 +430,15 @@ button:hover {
   <input id="servername" value="tunnel.icmp9.com" />
 
   <label>订阅格式</label>
-  <select id="format">
-    <option value="auto">自动识别（推荐）</option>
-    <option value="v2ray">V2Ray / vmess</option>
-    <option value="clash">Clash</option>
-    <option value="singbox">sing-box</option>
-    <option value="nekobox">Nekobox</option>
-  </select>
-
-  <label>TLS（已锁定）</label>
-  <select disabled>
-    <option>true</option>
-  </select>
+  <div class="select-wrap">
+    <select id="format">
+      <option value="auto">自动识别（推荐）</option>
+      <option value="v2ray">V2Ray / vmess</option>
+      <option value="clash">Clash</option>
+      <option value="singbox">sing-box</option>
+      <option value="nekobox">Nekobox</option>
+    </select>
+  </div>
 
   <button id="genBtn">生成订阅链接</button>
   <button class="copy" id="copyBtn">📋 复制订阅链接</button>
@@ -395,14 +446,25 @@ button:hover {
   <div class="result" id="result"></div>
 </div>
 
+<div class="toast" id="toast">已复制到剪贴板</div>
+
 <script>
 const $ = id => document.getElementById(id);
 const STORAGE = { UUID: "uuid", THEME: "theme", FORMAT: "format" };
 let currentUrl = "";
+let toastTimer = null;
+
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
+}
 
 function gen() {
   const uuid = $('uuid').value.trim();
-  if (!uuid) return alert("UUID 不能为空");
+  if (!uuid) return showToast("UUID 不能为空");
 
   localStorage.setItem(STORAGE.UUID, uuid);
 
@@ -434,8 +496,9 @@ function gen() {
 }
 
 function copy() {
-  if (!currentUrl) return alert("请先生成订阅链接");
-  navigator.clipboard.writeText(currentUrl).then(() => alert("已复制"));
+  if (!currentUrl) return showToast("请先生成订阅链接");
+  navigator.clipboard.writeText(currentUrl)
+    .then(() => showToast("已复制到剪贴板"));
 }
 
 function toggleTheme() {
