@@ -393,7 +393,7 @@ button:hover {
   <label>订阅格式</label>
   <select id="format">
     <option value="auto">自适应订阅（推荐）</option>
-    <option value="v2ray">V2Ray / vmess</option>
+    <option value="v2ray">V2Ray</option>
     <option value="clash">Clash</option>
     <option value="singbox">sing-box</option>
     <option value="nekobox">Nekobox</option>
