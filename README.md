@@ -1,7 +1,7 @@
 # ICMP9 订阅生成器
 `get-icmp9-node`是一个基于 Cloudflare Workers 构建的轻量级ICMP9订阅生成服务，支持 V2Ray / Clash / sing-box / Nekobox 等主流客户端，提供一条链接，多端自适应的订阅体验。
 
-💥目的：获取ICMP9提供的全球落地节点，搭配前置代理，实现全球落地。
+💥目的：获取ICMP9提供的全球落地节点，搭配前置代理或反向代理，实现全球落地。
 
 **🌴效果**：![IMG_20251230_164516_402.jpg](https://twilight.vvvv.ee/file/1767084365963_IMG_20251230_164516_402.jpg)
 
@@ -28,17 +28,67 @@
 
 
 6. 其他设置保持默认，点击 **部署**
-7. 部署完成之后，访问你的部署地址（可自定域）即可使用。
+7. 部署完成之后，访问你的部署地址（可自定域）参考 `✈️使用方法` ，即可使用。
 
 
 ---
 
 ## ✈️使用方法
-- 方法一（推荐）
-  - 只需要填入ICMP9的🔑 API Key，获取链接，导入到代理软件中，配置前置代理即可。
+
+方法一：链式代理（推荐）
+  - 只需要填入ICMP9的🔑 API Key（其他默认），获取链接，导入到代理软件中，配置前置代理即可。
   - 前置代理要求：需要在ICMP9的控制面板放行前置代理节点的服务器IP（包括IPV6）。
-  - 提示：可以用ICMP9提供的免费VPS搭建前置代理节点。
-- 其他方法
+  - **提示**：可以用ICMP9提供的免费VPS搭建前置代理节点。
+
+
+
+方法二：反向代理
+
+Nginx反代实例：
+```conf
+server {
+    listen 8080;
+    listen [::]:8080;
+    server_name www.example.com;#换成反代tunnel.icmp9.com的域名
+
+    resolver 8.8.8.8 1.1.1.1 valid=300s;
+    client_max_body_size 1G;
+    proxy_request_buffering off;
+    proxy_buffering off;
+
+    location / {
+        proxy_pass https://tunnel.icmp9.com;
+        proxy_ssl_server_name on;
+
+        proxy_set_header Host tunnel.icmp9.com;
+
+        proxy_set_header X-Real-IP "";
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Forwarded-Proto "";
+        proxy_set_header Forwarded "";
+        proxy_set_header Via "";
+
+        # 防止 Nginx 自动加
+        proxy_hide_header X-Powered-By;
+
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
+    }
+}
+```
+反代部署成功之后（别忘了放行IP），访问 ICMP9订阅生成器：
+  - 将`Server`和`Server Name`替换成反代好的域名。如：`www.example.com`
+  - `Port`改成Nginx监听的端口，如：`8080`
+  - 最后生成订阅链接，导入代理软件，即可使用
+
+
+其他方法
   - 参考：https://www.nodeloc.com/t/topic/72682 （本项目出处）
   - 不需要前置代理方法：https://github.com/nap0o/icmp9.com
 
