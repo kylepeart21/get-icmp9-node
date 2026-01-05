@@ -1,11 +1,11 @@
 # ICMP9 订阅生成器
 `get-icmp9-node`是一个基于 Cloudflare Workers 构建的轻量级ICMP9订阅生成服务，支持 V2Ray / Clash / sing-box / Nekobox 等主流客户端，提供一条链接，多端自适应的订阅体验。
 
-💥目的：获取ICMP9提供的全球落地节点，搭配前置代理或反向代理，实现全球落地。
+💥目的：获取ICMP9提供的全球落地节点，搭配前置代理或反向代理（可套Cloudflare tunnel + 优选IP提速），实现全球落地。
 
 **🌴效果**：![IMG_20251230_164516_402.jpg](https://twilight.vvvv.ee/file/1767084365963_IMG_20251230_164516_402.jpg)
 
-> 🔔测试客户端：NekoBox
+> 🔔前置代理测试客户端：NekoBox
 
 ## 🧩 部署方式
 
