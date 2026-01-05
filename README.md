@@ -84,13 +84,23 @@ server {
 ```
 反代部署成功之后（别忘了放行IP），访问 ICMP9订阅生成器：
   - 将`Server`和`Server Name`替换成反代好的域名。如：`www.example.com`
-  - `Port`改成Nginx监听的端口，如：`8080`
+  - `Port`改成Nginx监听的端口，如：`8080`（如果有端口转发请保持默认`443`）
   - 最后生成订阅链接，导入代理软件，即可使用
 
 
+方法三：反向代理 ➕ Cloudflare tunnel ➕ 优选IP（推荐）
+
+
+反代和隧道都搭建好之后，访问 ICMP9订阅生成器：
+- 将`Server`替换成优选IP或优选域名
+- `port`保持默认`443`
+- 将`Server Name`替换成Cloudflare tunnel绑定的域名。如：`www.example.com`
+- 最后生成订阅链接，导入代理软件，即可使用。（速度不理想，可以更换优选IP或优选域名）
+
+ 
 其他方法
   - 参考：https://www.nodeloc.com/t/topic/72682 （本项目出处）
-  - 不需要前置代理方法：https://github.com/nap0o/icmp9.com
+  - 不需要前置代理方法（一键脚本）：https://github.com/nap0o/icmp9.com
 
 ---
 
