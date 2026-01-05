@@ -142,10 +142,16 @@ Cloudflare tunnel手动创建即可，不会网上找教程（很简单）。
 - 将`Server Name`替换成Cloudflare tunnel绑定的域名。如：`www.example.com`
 - 最后生成订阅链接，导入代理软件，即可使用。（速度不理想，可以更换优选IP或优选域名）
 
+
+> ⚠️注意：
+> - 在小鸡上运行nginx和cloudflared都需要有一定的限制和守护，不会问AI。
+> - 这种搭建方法已经有 **一键脚本** （参考其他方法）。
+> - 推荐手动搭建，锻炼自己的动手能力。
+
  
 其他方法
   - 参考：https://www.nodeloc.com/t/topic/72682 （本项目出处）
-  - 不需要前置代理方法（一键脚本）：https://github.com/nap0o/icmp9.com
+  - 不需要前置代理方法（**一键脚本**）推荐：https://github.com/nap0o/icmp9.com
 
 ---
 
